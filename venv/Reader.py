@@ -2,16 +2,22 @@ import sys
 import re
 import ipaddress
 import time
+import netmiko
+from netmiko import ConnectHandler
+from IpAddress import *
 
 def main():
     start_time = time.time()
-    f = open("All Private IPs.txt", "r")
-    number = 31
+    # Opens file and reads all contentes
+    f = open("Speedtest_Don.txt", "r")
     contents = f.read()
 
+    sub9List = []
 
+    # Finds all IPs starting from 31, finds all possible supernets of 30 from those 31, and then finds all 30 and merges
+    # with the supernets of 30, then finds all 29 supernets, and so on until it subnet 9
     sub31List = findAllIP(contents, 31)
-    print(sub31List, "\n")
+    # print(sub31List, "\n")
     sub30List = findSuper(sub31List)
 
     sub30List = process(sub30List, 30, contents)
@@ -85,19 +91,23 @@ def main():
     SuperList = [sub31List, sub30List, sub29List, sub28List, sub27List, sub26List, sub25List, sub24List, sub23List,
                  sub22List, sub21List, sub20List, sub19List, sub18List, sub17List, sub16List, sub15List, sub14List,
                  sub13List, sub12List, sub11List, sub10List, sub9List]
-    toTextFile("sometext.txt", SuperList)
-    print("My program took", time.time() - start_time, "to run")
 
 
+    print("My program took", round(time.time() - start_time, 2), "to run")
+
+    # Allows user to choose which subnet to display from the list of all ip addresses
+    userInput(SuperList)
+
+# Takes a list of IP addresses (str) and converts them to IP Address Objects
 def convert(ipList):
-    for x in range(ipList.__len__()):
-        ipList[x] = ipaddress.IPv4Network(ipList[x])
+    ipList = [ipaddress.IPv4Network(x) for x in ipList]
     ipList.sort()
     ipList = list(dict.fromkeys(ipList))
     # print(regex)
     return ipList
 
-
+# Takes a sorted list of IPs, compares two ip's to see if they're in the same super class
+# if they are, then add the supernet to a separate list, returns list in the en
 def findSuper(ipList):
     y = 1
     subList = []
@@ -112,24 +122,28 @@ def findSuper(ipList):
             y = y + 1
     return subList
 
-
+# takes an the file contents, a submask, and finds all the instances of that subnet in the file contents
 def findAllIP(contents, submask):
     regex = re.findall(r'(?:[\d]{1,3})\.(?:[\d]{1,3})\.(?:[\d]{1,3})\.(?:[\d]{1,3})\/' + submask.__str__(), contents)
     regex = convert(regex)
     return regex
 
-def toTextFile(textFile, superList):
+# Pritns the user requested submasks from to a file
+def toTextFile(textFile, superList, submask):
     f = open(textFile, "w+")
-    tot = 32
-    for ipList in superList:
-        tot -= 1
-        f.write("/")
-        f.write(tot.__str__())
-        f.write(" Addresses\n")
-        for x in range(ipList.__len__()):
-            f.write(ipList[x].__str__())
+    if (submask != "all"):
+        tot = 32 - int(submask) - 1
+        print("/",submask, " Addresses", end="")
+        for x in superList[tot]:
+            f.write(str(x))
             f.write("\n")
-        f.write("\n")
+        f.close()
+    else:
+        for eachList in superList:
+            for y in eachList:
+                f.write(str(y))
+                f.write("\n")
+
     f.close()
 
 def removeNone(myList):
@@ -139,13 +153,20 @@ def removeDuplicates(myList):
     myList = list(dict.fromkeys(myList))
     return myList
 
+# Process method to remove repitiion
 def process(myList, submask, contents):
     myList.extend(findAllIP(contents, submask))
-    myList.sort()
+    # myList.sort()
     myList = removeDuplicates(myList)
-    print(myList, "\n")
+    # print(myList, "\n")
     return myList
 
+# User chooses which submask they're looking for, and which file to write to
+def userInput(superList):
+    userInput = input("Which submask are you looking for?\n")
+    userFile = input("Please name the file with the extension\n")
+    print("Displaying all /", userInput, " submarks", sep="")
+    toTextFile(userFile, superList, userInput)
 
 main()
 
